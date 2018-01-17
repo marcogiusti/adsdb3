@@ -23,25 +23,25 @@ Test
 ====
 
 adsdb2 include few test. ``test/test_dbapi20_adsdb3.py`` uses
-``test/dbapi20.py`` from Stuart Bishop to check the compatibility with
-the `Database API Specification v 2.0`_. To run them you need access to
-a server and set either ADSDB3_DATASOURCE or ADSDB3_CONNECTION_STRING
-environment variables. ADSDB3_DATASOURCE is used only to set the
-DataSource connection paramenter along with few defaults. With
-ADSDB3_CONNECTION_STRING you have control of the exact connection
-string. Online you can find some example of `connection strings for
-Sybase Advantage`_. The official documentation has a list of `supported
-options`_ for the ``AdsConnect101`` API, but not all them works with the
-connection string. I have still to figure out which work and which do
-not. If you don't set any of those variables, the tests that involve the
-server are skipped.
+``test/dbapi20.py`` from `Stuart Bishop`_ to check the compatibility
+with the `Database API Specification v 2.0`_. To run them you need
+access to a server and set either ADSDB3_DATASOURCE or
+ADSDB3_CONNECTION_STRING environment variables. ADSDB3_DATASOURCE is
+used only to set the DataSource connection paramenter along with few
+defaults. With ADSDB3_CONNECTION_STRING you have control of the exact
+connection string. Online you can find some example of `connection
+strings for Sybase Advantage`_. The official documentation has a list of
+`supported options`_ for the ``AdsConnect101`` API, but not all them
+works with the connection string. I have still to figure out which work
+and which do not. If you don't set any of those variables, the tests
+that involve the server are skipped.
 
 You have many options to run the tests. Most likely the easier is using
 tox::
 
    $ tox -e py35-nocov
 
-.. _Database API Specification v 2.0: https://www.python.org/dev/peps/pep-0249/#rowcount
+.. _Database API Specification v 2.0: https://www.python.org/dev/peps/pep-0249/
 .. _Stuart Bishop: https://stuartbishop.net/Software/DBAPI20TestSuite/index.html
 .. _connection strings for Sybase Advantage: http://docs.30c.org/conn/sybase-advantage.html
 .. _supported options: http://devzone.advantagedatabase.com/dz/webhelp/Advantage11.1/index.html?ace_adsconnect101.htm 
