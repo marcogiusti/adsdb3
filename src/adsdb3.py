@@ -283,10 +283,7 @@ def _from_python(param, value, encoding):
     is_null = ffi.new('int *', value is None)
     param.value.is_null = is_null
 
-    if param.direction != lib.DD_INPUT:
-        import pdb; pdb.set_trace()
-
-    if is_null[0] and param.direction == lib.DD_INPUT:
+    if is_null[0]:
         value = 0
     if param.value.type == lib.A_INVALID_TYPE:
         param.value.type = _infer_type(param, value)
@@ -305,9 +302,6 @@ def _from_python(param, value, encoding):
             except UnicodeEncodeError:
                 raise DataError('Cannot convert value {}'.format(value))
             size = length = len(value)
-        if param.direction != lib.DD_INPUT:
-            if size < param.value.buffer_size:
-                size = param.value.buffer_size
     else:
         value = struct.pack(fmt, value)
         size = length = struct.calcsize(fmt)
