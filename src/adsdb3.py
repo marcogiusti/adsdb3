@@ -313,14 +313,14 @@ def _from_python(param, value, encoding):
     _ref_bucket[param] = (is_null, buf, l)
 
 
-def connect(params=None, **kwds):
-    if not isinstance(params, str):
-        params = ';'.join('{}={}'.format(*item) for item in kwds.items())
-    params = params.encode('ascii')
+def connect(connection_string=None, **kwds):
+    if not isinstance(connection_string, str):
+        connection_string = ';'.join('{}={}'.format(*i) for i in kwds.items())
+    connection_string = connection_string.encode('ascii')
     handler = lib.ads_new_connection()
     if not handler:
         raise InternalError(*_error(None))
-    return Connection(handler, params)
+    return Connection(handler, connection_string)
 
 
 class Connection:
@@ -338,10 +338,10 @@ class Connection:
 
     encoding = 'Windows-1252'
 
-    def __init__(self, handler, params):
+    def __init__(self, handler, connection_string):
         self._handler = handler
         self._finalizer = weakref.finalize(self, self._cleanup, handler)
-        if not lib.ads_connect(handler, params):
+        if not lib.ads_connect(handler, connection_string):
             raise OperationalError(*_error(handler))
 
     @classmethod
@@ -502,7 +502,6 @@ class Cursor:
         stmt.execute()
         try:
             self._description = stmt.columns_info()
-            # XXX: Check num_rows and affected_rows
             if self._description is None:
                 self._rowcount = stmt.affected_rows()
             else:
