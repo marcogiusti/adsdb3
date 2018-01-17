@@ -190,6 +190,9 @@ class TestInteger(TestField, unittest.TestCase):
             if not (exc.errno == lib.AE_VALUE_OVERFLOW and not is_int32(i)):
                 raise
 
+    def test_null(self):
+        self._insert(self.connection, [None])
+
 
 class TestShort(TestField, unittest.TestCase):
 
@@ -220,6 +223,9 @@ class TestShort(TestField, unittest.TestCase):
         except adsdb3.DatabaseError as exc:
             if not (exc.errno == lib.AE_VALUE_OVERFLOW and not is_int16(s)):
                 raise
+
+    def test_null(self):
+        self._insert(self.connection, [None])
 
 
 class TestFromPython(ConnectMixin, unittest.TestCase):
@@ -265,11 +271,6 @@ class TestFromPython(ConnectMixin, unittest.TestCase):
         stmt = 'SELECT * FROM {}booze'.format(self.table_prefix)
         cursor.execute(stmt)
         return cursor.fetchone()
-
-    def test_insert_null(self):
-        with closing(self.connection.cursor()) as cursor:
-            values = [None] * 12
-            self._insert(cursor, values)
 
     def _insert_get_value(self, index, value, expected):
         with closing(self.connection.cursor()) as cursor:
