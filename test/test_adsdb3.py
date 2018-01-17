@@ -140,14 +140,9 @@ def is_int64(i):
 
 class TestField(ConnectMixin):
 
-    # ddl = '''
-    # CREATE TABLE {table_prefix}booze (
-    #     {field_stmt}
-    # )
-    # '''
     ddl = None
     xddl = 'DROP TABLE {table_prefix}booze'
-    table_prefix = 'adsdb3test2_'
+    table_prefix = 'adsdb3test_'
 
     def setUp(self):
         ddl = self.ddl.format(table_prefix=self.table_prefix)
