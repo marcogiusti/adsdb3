@@ -1,0 +1,6 @@
+include src/ace_build.py
+include src/ace.h
+include test/adsdb3_test_utils.py
+include test/dbapi20.py
+include tox.ini
+include LICENSE
