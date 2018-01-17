@@ -28,6 +28,20 @@ paramstyle = 'qmark'
 _FORMATS = 'xxxdqQiIhHbBxxxxx'
 _MIN_INT32 = -(2 ** 31)
 _MAX_INT32 = 2 ** 31 - 1
+_MIN_INT64 = -(2 ** 63)
+_MAX_INT64 = 2 ** 63 - 1
+_TIME_RE = re.compile(
+    r'^'
+    r'(?P<hour>\d{2})'
+    r':'
+    r'(?P<minute>\d{2})'
+    r':'
+    r'(?P<second>\d{2})'
+    r'(?P<microsecond>\.\d+)?'
+    r'(?: (?P<ampm>AM|PM))?'
+    r'$'
+)
+_NATIVE_ERROR_RE = re.compile(r'NativeError\s+=\s+(?P<errno>\d+);')
 _ref_bucket = weakref.WeakKeyDictionary()
 
 
@@ -148,6 +162,12 @@ def _error(handler):
     if errno == 0:
         return 'internal error: success', 0
     msg = ffi.string(buf, buflength + 1).decode('ascii', 'ignore').rstrip()
+    if errno == 7200:
+        # because 7200 seems to be a generic error we look for a more specific
+        # error code and we report that instead
+        matchobj = _NATIVE_ERROR_RE.search(msg)
+        if matchobj is not None:
+            errno = int(matchobj.group('errno') or 0)
     return msg, errno
 
 
@@ -191,23 +211,10 @@ def _date(s):
     return datetime.datetime.strptime(s, '%m/%d/%Y').date()
 
 
-TIME_RE = re.compile(
-    r'^'
-    r'(?P<hour>\d{2})'
-    r':'
-    r'(?P<minute>\d{2})'
-    r':'
-    r'(?P<second>\d{2})'
-    r'(?P<microsecond>\.\d+)?'
-    r'(?: (?P<ampm>AM|PM))?'
-    r'$'
-)
-
-
 def _time(s):
     if not s:
         return None
-    matchobj = TIME_RE.match(s)
+    matchobj = _TIME_RE.match(s)
     if matchobj:
         hour = int(matchobj.group('hour'))
         if hour == 12:
@@ -248,12 +255,22 @@ def _datetime(s):
         return _date(s)
 
 
+def _is_int32(value):
+    return _MIN_INT32 <= value <= _MAX_INT32
+
+
+def _is_int64(value):
+    return _MIN_INT64 <= value <= _MAX_INT64
+
+
 def _infer_type(param, value):
     if isinstance(value, int):
-        if _MIN_INT32 <= value <= _MAX_INT32:
+        if _is_int32(value):
             return lib.A_VAL32
-        else:
+        if _is_int64(value):
             return lib.A_VAL64
+        else:
+            raise DataError('Value out of range {}'.format(value))
     elif isinstance(value, float):
         return lib.A_DOUBLE
     elif isinstance(value, bytes):

@@ -2,6 +2,7 @@
 
 /* Error codes */
 #define AE_TRANS_OUT_OF_SEQUENCE        5047
+#define AE_VALUE_OVERFLOW               5179
 
 struct a_ads_connection;
 struct a_ads_stmt;

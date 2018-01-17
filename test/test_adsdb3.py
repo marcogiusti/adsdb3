@@ -5,8 +5,11 @@ import decimal
 import datetime
 import unittest
 import weakref
-import adsdb3
 
+from hypothesis import given
+from hypothesis.strategies import integers
+
+import adsdb3
 from adsdb3 import ffi, lib
 from adsdb3_test_utils import ConnectMixin
 
@@ -121,6 +124,107 @@ class TestToPython(unittest.TestCase):
             buf,
             len(buf)
         )
+
+
+def is_int16(i):
+    return -2**15 <= i <= 2**15 - 1
+
+
+def is_int32(i):
+    return -2**31 <= i <= 2**31 - 1
+
+
+def is_int64(i):
+    return -2**63 <= i <= 2**63 - 1
+
+
+class TestField(ConnectMixin):
+
+    # ddl = '''
+    # CREATE TABLE {table_prefix}booze (
+    #     {field_stmt}
+    # )
+    # '''
+    ddl = None
+    xddl = 'DROP TABLE {table_prefix}booze'
+    table_prefix = 'adsdb3test2_'
+
+    def setUp(self):
+        ddl = self.ddl.format(table_prefix=self.table_prefix)
+        xddl = self.xddl.format(table_prefix=self.table_prefix)
+        connection = self.connect()
+        cursor = connection.cursor()
+        self.addCleanup(cursor.close)
+        cursor.execute(ddl)
+        self.addCleanup(cursor.execute, xddl)
+        self.connection = connection
+
+    def _insert(self, connection, values):
+        stmt = 'INSERT INTO {}booze VALUES(?)'.format(self.table_prefix)
+        with closing(connection.cursor()) as cursor:
+            cursor.execute(stmt, values)
+
+
+class TestInteger(TestField, unittest.TestCase):
+
+    ddl = '''
+    CREATE TABLE {table_prefix}booze (
+        int_field INTEGER
+    )
+    '''
+
+    @given(i=integers())
+    def test_integer(self, i):
+        try:
+            self._insert(self.connection, [i])
+        except adsdb3.DataError:
+            if is_int64(i):
+                raise
+        except adsdb3.DatabaseError as exc:
+            if not (exc.errno == lib.AE_VALUE_OVERFLOW and not is_int32(i)):
+                raise
+
+    @given(i=integers())
+    def test_str(self, i):
+        try:
+            self._insert(self.connection, [str(i)])
+        except adsdb3.DataError:
+            if is_int64(i):
+                raise
+        except adsdb3.DatabaseError as exc:
+            if not (exc.errno == lib.AE_VALUE_OVERFLOW and not is_int32(i)):
+                raise
+
+
+class TestShort(TestField, unittest.TestCase):
+
+    ddl = '''
+    CREATE TABLE {table_prefix}booze (
+        short_field SHORT
+    )
+    '''
+
+    @given(s=integers())
+    def test_short_integer(self, s):
+        try:
+            self._insert(self.connection, [s])
+        except adsdb3.DataError:
+            if is_int64(s):
+                raise
+        except adsdb3.DatabaseError as exc:
+            if not (exc.errno == lib.AE_VALUE_OVERFLOW and not is_int16(s)):
+                raise
+
+    @given(s=integers())
+    def test_str(self, s):
+        try:
+            self._insert(self.connection, [str(s)])
+        except adsdb3.DataError:
+            if is_int64(s):
+                raise
+        except adsdb3.DatabaseError as exc:
+            if not (exc.errno == lib.AE_VALUE_OVERFLOW and not is_int16(s)):
+                raise
 
 
 class TestFromPython(ConnectMixin, unittest.TestCase):

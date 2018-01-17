@@ -23,6 +23,7 @@ setup(
     extras_require={
         'dev': [
             'coverage',
+            'hypothesis',
             'pep8',
             'pyflakes',
             'tox',
