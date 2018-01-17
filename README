@@ -4,6 +4,15 @@ adsdb3
 Python 3 Advantage database interface
 -------------------------------------
 
+Disclaimer
+==========
+
+I am not affiliated with SAP SE and this driver is not the official ADS
+Python driver.
+
+This driver is still in alpha quality tho yet usable for simply tasks.
+Most notably the ``callproc()`` does not support the output parameters.
+
 Install
 =======
 
