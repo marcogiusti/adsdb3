@@ -37,3 +37,11 @@ class ConnectMixin:
         connection = adsdb3.connect(*self.connect_args, **self.connect_kw_args)
         self.addCleanup(connection.close)
         return connection
+
+    def _connect(self):
+        try:
+            adsdb3.connect
+        except AttributeError:
+            self.fail("No connect method found in self.driver module")
+        else:
+            return self.connect()
