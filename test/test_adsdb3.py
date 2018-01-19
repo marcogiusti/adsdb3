@@ -3,6 +3,7 @@
 from contextlib import closing
 import decimal
 import datetime
+import gc
 import unittest
 import weakref
 
@@ -11,7 +12,7 @@ from hypothesis.strategies import integers
 
 import adsdb3
 from adsdb3 import ffi, lib
-from adsdb3_test_utils import DDLMixin
+from adsdb3_test_utils import ConnectMixin, DDLMixin
 
 
 _ref_bucket = weakref.WeakKeyDictionary()
@@ -324,3 +325,69 @@ class TestStoredProc(DDLMixin, unittest.TestCase):
 
     def test_create_procedure(self):
         pass
+
+
+class TestWarnings(ConnectMixin, unittest.TestCase):
+
+    def connect(self):
+        return adsdb3.connect(*self.connect_args, **self.connect_kw_args)
+
+    def test_connection_not_closed_warning(self):
+        'The connections must be explicitelly closed.'
+
+        gc.disable()
+        self.addCleanup(gc.enable)
+        gc.collect(2)
+        with self.assertWarns(ResourceWarning) as cm:
+            self.connect()
+            gc.collect(2)
+        self.assertEqual(str(cm.warning), 'Implicit connection cleanup')
+
+    def test_cursor_not_closed_warning(self):
+        'The cursors must be explicitelly closed.'
+
+        gc.disable()
+        self.addCleanup(gc.enable)
+        gc.collect(2)
+        with closing(self.connect()) as connection:
+            with self.assertWarns(ResourceWarning) as cm:
+                connection.cursor().callproc('sp_mgGetInstallInfo')
+                gc.collect(2)
+            self.assertEqual(str(cm.warning), 'Implicit statement cleanup')
+
+    def test_cursor_connection_attribute(self):
+        '''
+        cursor.connection is an extention to the DP-API 2.0 and cause a
+        warning.
+        '''
+
+        with closing(self.connect()) as connection:
+            with closing(connection.cursor()) as cursor:
+                with self.assertWarns(UserWarning) as cm:
+                    cursor.connection
+                self.assertIn('cursor.connection', str(cm.warning))
+
+    def test_iter_cursor(self):
+        '''
+        Cursor iteration protocol is an extention to the DP-API 2.0 and cause a
+        warning.
+        '''
+
+        with closing(self.connect()) as connection:
+            with closing(connection.cursor()) as cursor:
+                with self.assertWarns(UserWarning) as cm:
+                    iter(cursor)
+                self.assertIn('cursor.__iter__', str(cm.warning))
+
+    def test_cursor_next(self):
+        '''
+        Cursor iteration protocol is an extention to the DP-API 2.0 and cause a
+        warning.
+        '''
+
+        with closing(self.connect()) as connection:
+            with closing(connection.cursor()) as cursor:
+                cursor.callproc('sp_mgGetInstallInfo')
+                with self.assertWarns(UserWarning) as cm:
+                    cursor.__next__()
+                self.assertIn('cursor.__next__', str(cm.warning))

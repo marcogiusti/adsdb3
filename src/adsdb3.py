@@ -561,7 +561,7 @@ class _Statement:
 
     @classmethod
     def _cleanup(cls, stmt):
-        warnings.warn('Implicit cleanup Statement', ResourceWarning)
+        warnings.warn('Implicit statement cleanup', ResourceWarning)
         lib.ads_free_stmt(stmt)
 
     def free(self):
