@@ -1,6 +1,7 @@
 # Copyright (c) 2018 Marco Giusti
 
 import os
+from contextlib import closing
 import unittest
 
 import adsdb3
@@ -45,3 +46,26 @@ class ConnectMixin:
             self.fail("No connect method found in self.driver module")
         else:
             return self.connect()
+
+
+class DDLMixin(ConnectMixin):
+
+    ddl = None
+    xddl = None
+    prefix = 'adsdb3test_'
+
+    def setUp(self):
+        super().setUp()
+        ddl = self.ddl.format(prefix=self.prefix)
+        connection = self.connect()
+        with closing(connection.cursor()) as cursor:
+            cursor.execute(ddl)
+        if self.xddl is not None:
+            xddl = self.xddl.format(prefix=self.prefix)
+            self.addCleanup(self._do_xddl, connection, xddl)
+        self.connection = connection
+
+    @staticmethod
+    def _do_xddl(connection, xddl):
+        with closing(connection.cursor()) as cursor:
+            cursor.execute(xddl)

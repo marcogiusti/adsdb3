@@ -11,7 +11,7 @@ from hypothesis.strategies import integers
 
 import adsdb3
 from adsdb3 import ffi, lib
-from adsdb3_test_utils import ConnectMixin
+from adsdb3_test_utils import DDLMixin
 
 
 _ref_bucket = weakref.WeakKeyDictionary()
@@ -138,24 +138,10 @@ def is_int64(i):
     return -2**63 <= i <= 2**63 - 1
 
 
-class TestField(ConnectMixin):
-
-    ddl = None
-    xddl = 'DROP TABLE {table_prefix}booze'
-    table_prefix = 'adsdb3test_'
-
-    def setUp(self):
-        ddl = self.ddl.format(table_prefix=self.table_prefix)
-        xddl = self.xddl.format(table_prefix=self.table_prefix)
-        connection = self.connect()
-        cursor = connection.cursor()
-        self.addCleanup(cursor.close)
-        cursor.execute(ddl)
-        self.addCleanup(cursor.execute, xddl)
-        self.connection = connection
+class TestField(DDLMixin):
 
     def _insert(self, connection, values):
-        stmt = 'INSERT INTO {}booze VALUES(?)'.format(self.table_prefix)
+        stmt = 'INSERT INTO {prefix}booze VALUES(?)'.format(prefix=self.prefix)
         with closing(connection.cursor()) as cursor:
             cursor.execute(stmt, values)
 
@@ -163,10 +149,11 @@ class TestField(ConnectMixin):
 class TestInteger(TestField, unittest.TestCase):
 
     ddl = '''
-    CREATE TABLE {table_prefix}booze (
-        int_field INTEGER
-    )
+        CREATE TABLE {prefix}booze (
+            int_field INTEGER
+        )
     '''
+    xddl = 'DROP TABLE {prefix}booze'
 
     @given(i=integers())
     def test_integer(self, i):
@@ -197,10 +184,11 @@ class TestInteger(TestField, unittest.TestCase):
 class TestShort(TestField, unittest.TestCase):
 
     ddl = '''
-    CREATE TABLE {table_prefix}booze (
-        short_field SHORT
-    )
+        CREATE TABLE {prefix}booze (
+            short_field SHORT
+        )
     '''
+    xddl = 'DROP TABLE {prefix}booze'
 
     @given(s=integers())
     def test_short_integer(self, s):
@@ -228,7 +216,8 @@ class TestShort(TestField, unittest.TestCase):
         self._insert(self.connection, [None])
 
 
-class TestFromPython(ConnectMixin, unittest.TestCase):
+@unittest.skip('to be refactored')
+class TestFromPython(DDLMixin, unittest.TestCase):
 
     ddl = '''
     CREATE TABLE {}booze (
@@ -247,28 +236,17 @@ class TestFromPython(ConnectMixin, unittest.TestCase):
         l LOGICAL
     )
     '''
-    xddl = 'drop table {}booze'
-    table_prefix = 'adsdb3test_'
-
-    def setUp(self):
-        ddl = self.ddl.format(self.table_prefix)
-        xddl = self.xddl.format(self.table_prefix)
-        connection = self.connect()
-        cursor = connection.cursor()
-        self.addCleanup(cursor.close)
-        cursor.execute(ddl)
-        self.addCleanup(cursor.execute, xddl)
-        self.connection = connection
+    xddl = 'DROP TABLE {}booze'
 
     def _insert(self, cursor, values):
         stmt = '''
-        INSERT INTO {}booze
+        INSERT INTO {prefix}booze
         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        '''.format(self.table_prefix)
+        '''.format(prefix=self.prefix)
         cursor.execute(stmt, values)
 
     def _select_all(self, cursor):
-        stmt = 'SELECT * FROM {}booze'.format(self.table_prefix)
+        stmt = 'SELECT * FROM {}booze'.format(prefix=self.prefix)
         cursor.execute(stmt)
         return cursor.fetchone()
 
@@ -327,3 +305,22 @@ class TestFromPython(ConnectMixin, unittest.TestCase):
     def test_nvarchar(self):
         value = 'Ça peux pas faire de mal'
         self._insert_get_value(7, value, value)
+
+
+@unittest.skip('See how stored procedures work')
+class TestStoredProc(DDLMixin, unittest.TestCase):
+
+    ddl = '''
+        CREATE PROCEDURE {prefix}myupper
+        (
+            str VARCHAR(100),
+            strup VARCHAR(100) OUTPUT
+        )
+        BEGIN
+            INSERT INTO __output VALUES ( UPPER(_str) );
+        END;
+    '''
+    xddl = 'DROP PROCEDURE {prefix}myupper'
+
+    def test_create_procedure(self):
+        pass
