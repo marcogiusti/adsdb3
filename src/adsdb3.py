@@ -320,7 +320,10 @@ def connect(connection_string=None, **kwds):
     handler = lib.ads_new_connection()
     if not handler:
         raise InternalError(*_error(None))
-    return Connection(handler, connection_string)
+    if not lib.ads_connect(handler, connection_string):
+        lib.ads_free_connection(handler)
+        raise OperationalError(*_error(handler))
+    return Connection(handler)
 
 
 class Connection:
@@ -338,11 +341,9 @@ class Connection:
 
     encoding = 'Windows-1252'
 
-    def __init__(self, handler, connection_string):
+    def __init__(self, handler):
         self._handler = handler
         self._finalizer = weakref.finalize(self, self._cleanup, handler)
-        if not lib.ads_connect(handler, connection_string):
-            raise OperationalError(*_error(handler))
 
     @classmethod
     def _cleanup(cls, handler):
@@ -353,6 +354,7 @@ class Connection:
     def _close(cls, handler):
         lib.ads_rollback(handler)
         try:
+            # XXX: Ignore the error?
             if not lib.ads_disconnect(handler):
                 raise OperationalError(*_error(handler))
         finally:
