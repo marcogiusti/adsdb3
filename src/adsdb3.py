@@ -10,6 +10,7 @@ import weakref
 from _ace import ffi, lib
 
 
+__version__ = '0.1.0'
 __all__ = [
     'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Warning', 'Error',
     'InterfaceError', 'DatabaseError', 'DataError', 'OperationalError',

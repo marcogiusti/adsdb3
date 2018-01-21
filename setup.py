@@ -1,14 +1,27 @@
 # Copyright (c) 2018 Marco Giusti
 
+import os.path
 from setuptools import setup
 
 
 with open('README') as fd:
     long_description = fd.read()
 
+
+version = None
+with open(os.path.join('src', 'adsdb3.py')) as fp:
+    glb = {}
+    for line in fp:
+        if '__version__' in line:
+            exec(line, glb)
+            version = glb['__version__']
+            break
+if version is None:
+    raise RuntimeError('cannot retrieve version')
+
 setup(
     name='adsdb3',
-    version='0.1.0',
+    version=version,
     description='Python 3 Advantage database interface',
     long_description=long_description,
     author='Marco Giusti',
