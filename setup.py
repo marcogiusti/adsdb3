@@ -8,7 +8,6 @@ with open('README') as fd:
     long_description = fd.read()
 
 
-version = None
 with open(os.path.join('src', 'adsdb3.py')) as fp:
     glb = {}
     for line in fp:
@@ -16,8 +15,8 @@ with open(os.path.join('src', 'adsdb3.py')) as fp:
             exec(line, glb)
             version = glb['__version__']
             break
-if version is None:
-    raise RuntimeError('cannot retrieve version')
+    else:
+        raise RuntimeError('cannot retrieve version')
 
 setup(
     name='adsdb3',
