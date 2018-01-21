@@ -352,6 +352,7 @@ class Connection:
 
     @classmethod
     def _close(cls, handler):
+        # Ignore rollback errors
         lib.ads_rollback(handler)
         try:
             # XXX: Ignore the error?
@@ -368,15 +369,6 @@ class Connection:
     def _complain_if_closed(self):
         if self._handler is None:
             raise InterfaceError('connection closed')
-
-    def _rollback_on_close(self):
-        if self._handler is not None:
-            self._rollback()
-
-    def _rollback(self):
-        if self._in_transaction():
-            if not lib.ads_rollback(self._handler):
-                raise OperationalError(*_error(self._handler))
 
     def _in_transaction(self):
         in_trans = ffi.new('unsigned short int[1]')
@@ -402,7 +394,9 @@ class Connection:
 
     def rollback(self):
         self._complain_if_closed()
-        self._rollback()
+        if self._in_transaction():
+            if not lib.ads_rollback(self._handler):
+                raise OperationalError(*_error(self._handler))
 
     def cursor(self):
         self._complain_if_closed()
@@ -464,11 +458,8 @@ class Cursor:
 
     def close(self):
         if not self._closed:
-            try:
-                self._connection._rollback_on_close()
-            finally:
-                self._reset()
-                self._closed = True
+            self._reset()
+            self._closed = True
 
     def _reset(self):
         if self._stmt is not None:
