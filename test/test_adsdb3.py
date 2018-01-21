@@ -7,7 +7,7 @@ import gc
 import unittest
 import weakref
 
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis.strategies import integers
 
 import adsdb3
@@ -157,6 +157,7 @@ class TestInteger(TestField, unittest.TestCase):
     xddl = 'DROP TABLE {prefix}booze'
 
     @given(i=integers())
+    @settings(deadline=None)
     def test_integer(self, i):
         try:
             self._insert(self.connection, [i])
@@ -168,6 +169,7 @@ class TestInteger(TestField, unittest.TestCase):
                 raise
 
     @given(i=integers())
+    @settings(deadline=None)
     def test_str(self, i):
         try:
             self._insert(self.connection, [str(i)])
@@ -192,6 +194,7 @@ class TestShort(TestField, unittest.TestCase):
     xddl = 'DROP TABLE {prefix}booze'
 
     @given(s=integers())
+    @settings(deadline=None)
     def test_short_integer(self, s):
         try:
             self._insert(self.connection, [s])
@@ -203,6 +206,7 @@ class TestShort(TestField, unittest.TestCase):
                 raise
 
     @given(s=integers())
+    @settings(deadline=None)
     def test_str(self, s):
         try:
             self._insert(self.connection, [str(s)])
