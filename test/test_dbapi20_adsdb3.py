@@ -18,7 +18,7 @@ class TestADS_DBAPI20(ConnectMixin, dbapi20.DatabaseAPI20Test):
         cls.catcher.__enter__()
         warnings.filterwarnings(
             'ignore',
-            'Implicit cleanup Statement',
+            'Implicit statement cleanup',
             ResourceWarning,
             'adsdb3'
         )
