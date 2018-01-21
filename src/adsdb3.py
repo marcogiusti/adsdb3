@@ -454,16 +454,6 @@ class Cursor:
     def __init__(self, connection):
         self._connection = connection
 
-    def __enter__(self):
-        self._complain_if_closed()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if exc_type is not None:
-            self._connection.commit()
-        else:
-            self._connection.rollback()
-
     def __iter__(self):
         warnings.warn('DB-API extension cursor.__iter__() used')
         self._complain_if_closed()
