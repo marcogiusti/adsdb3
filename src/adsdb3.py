@@ -344,6 +344,11 @@ class Connection:
     def __init__(self, handler):
         self._handler = handler
         self._finalizer = weakref.finalize(self, self._cleanup, handler)
+        cursor = self.cursor()
+        try:
+            cursor.execute('SET TRANSACTION AUTOCOMMIT_OFF')
+        finally:
+            cursor.close()
 
     @classmethod
     def _cleanup(cls, handler):
@@ -370,6 +375,19 @@ class Connection:
         if self._handler is None:
             raise InterfaceError('connection closed')
 
+    def _transaction_raise(self):
+        # Cit. the documentation:
+        # > The error code AE_TRANS_OUT_OF_SEQUENCE will be returned if
+        # > a specific connection handle is given to
+        # > AdsCommitTransaction and that connection is not in a
+        # > transaction
+        # Because we don't want to raise an exception in such case,
+        # ignore it. In autocommit mode ads_commit returns 0 but it does
+        # not set the errno. Just ignore 'internal error: success'.
+        msg, errno = _error(self._handler)
+        if errno not in (lib.AE_SUCCESS, lib.AE_TRANS_OUT_OF_SEQUENCE):
+            raise OperationalError(msg, errno)
+
     def _in_transaction(self):
         in_trans = ffi.new('unsigned short int[1]')
         if lib.AdsInTransaction(self._handler.handle, in_trans):
@@ -388,15 +406,16 @@ class Connection:
 
     def commit(self):
         self._complain_if_closed()
-        for _ in range(self._transaction_count()):
-            if not lib.ads_commit(self._handler):
-                raise OperationalError(*_error(self._handler))
+        # Commits all active transactions up to the outer one.
+        while lib.ads_commit(self._handler):
+            pass
+        #  Most likely we committed all work, but in case of error, raise it.
+        self._transaction_raise()
 
     def rollback(self):
         self._complain_if_closed()
-        if self._in_transaction():
-            if not lib.ads_rollback(self._handler):
-                raise OperationalError(*_error(self._handler))
+        if not lib.ads_rollback(self._handler):
+            self._transaction_raise()
 
     def cursor(self):
         self._complain_if_closed()
@@ -477,6 +496,17 @@ class Cursor:
             raise DatabaseError(*_error(handler))
         return _Statement(stmt, handler, self._connection.encoding)
 
+    def _execute(self, operation, parameters=()):
+        self._stmt = stmt = self._prepare_statement(operation)
+        stmt.bind_params(parameters)
+        stmt.execute()
+        description = stmt.columns_info()
+        if description is None:
+            rowcount = stmt.affected_rows()
+        else:
+            rowcount = stmt.num_rows()
+        return description, rowcount
+
     def _complain_if_closed(self):
         if self._closed:
             raise InterfaceError('cursor closed')
@@ -498,31 +528,23 @@ class Cursor:
     def execute(self, operation, parameters=()):
         self._complain_if_closed()
         self._reset()
-        self._stmt = stmt = self._prepare_statement(operation)
-        stmt.bind_params(parameters)
-        stmt.execute()
-        try:
-            self._description = stmt.columns_info()
-            if self._description is None:
-                self._rowcount = stmt.affected_rows()
-            else:
-                self._rowcount = stmt.num_rows()
-        except:
-            self._description = None
-            self._rowcount = -1
-            raise
+        self._description, self._rowcount = self._execute(
+            operation,
+            parameters
+        )
 
-    def executemany(self, operation, seq_of_paramenters):
+    def executemany(self, operation, seq_of_parameters):
         self._complain_if_closed()
-        rowcount_s = False
-        rowcount = 0
-        for parameters in seq_of_paramenters:
-            self.execute(operation, parameters)
-            if self._rowcount > 0:
-                rowcount += self._rowcount
-                rowcount_s = True
-        if rowcount_s:
-            self._rowcount = rowcount
+        self._reset()
+        rowcount_f = False
+        rowcount_s = 0
+        for parameters in seq_of_parameters:
+            self._description, rowcount = self._execute(operation, parameters)
+            if rowcount > 0:
+                rowcount_s += rowcount
+                rowcount_f = True
+        if rowcount_f:
+            self._rowcount = rowcount_s
 
     def _fetch(self, size):
         self._complain_if_closed()

@@ -1,5 +1,8 @@
 #define ADS_MAX_ERROR_LEN        600
 
+/* Success return code */
+#define AE_SUCCESS                      0
+
 /* Error codes */
 #define AE_TRANS_OUT_OF_SEQUENCE        5047
 #define AE_VALUE_OVERFLOW               5179

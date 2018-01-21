@@ -12,7 +12,7 @@ from hypothesis.strategies import integers
 
 import adsdb3
 from adsdb3 import ffi, lib
-from adsdb3_test_utils import ConnectMixin, DDLMixin
+from adsdb3_test_utils import ConnectMixin, DDLMixin, transaction
 
 
 _ref_bucket = weakref.WeakKeyDictionary()
@@ -143,7 +143,7 @@ class TestField(DDLMixin):
 
     def _insert(self, connection, values):
         stmt = 'INSERT INTO {prefix}booze VALUES(?)'.format(prefix=self.prefix)
-        with closing(connection.cursor()) as cursor:
+        with transaction(connection) as cursor:
             cursor.execute(stmt, values)
 
 
@@ -400,6 +400,8 @@ class TestWarnings(ConnectMixin, unittest.TestCase):
 class TestTransactions(ConnectMixin, unittest.TestCase):
 
     def test_not_in_transaction(self):
+        '''By default a new connection is not in a transaction.'''
+
         connection = self.connect()
         self.assertFalse(connection._in_transaction())
 
@@ -415,3 +417,95 @@ class TestTransactions(ConnectMixin, unittest.TestCase):
         self.assertEqual(connection._transaction_count(), 1)
         connection._begin_transaction()
         self.assertEqual(connection._transaction_count(), 2)
+        connection.commit()
+        self.assertEqual(connection._transaction_count(), 0)
+
+    def test_execute_start_transaction(self):
+        '''
+        Cursor.execute() and similar by default open a transaction. Only a DML
+        statemente should start a transaction but I am not sure how autocommit
+        in ADS works and how inspect the status in autocommit mode.
+        Cursor.execute() starts a transaction if and only if a transaction is
+        not active.
+        '''
+
+        connection = self.connect()
+        self.assertEqual(connection._transaction_count(), 0)
+        with closing(connection.cursor()) as cursor:
+            self.assertEqual(connection._transaction_count(), 0)
+            cursor.execute('EXECUTE PROCEDURE sp_mgGetInstallInfo()')
+            self.assertEqual(connection._transaction_count(), 1)
+            # no new nested transaction is started
+            cursor.execute('EXECUTE PROCEDURE sp_mgGetInstallInfo()')
+            self.assertEqual(connection._transaction_count(), 1)
+        # cursor is closed but transaction count does not change
+        self.assertEqual(connection._transaction_count(), 1)
+        self.assertTrue(connection._in_transaction())
+        connection.commit()
+        self.assertEqual(connection._transaction_count(), 0)
+        self.assertFalse(connection._in_transaction())
+
+    def test_nested_transactions(self):
+        connection = self.connect()
+        with closing(connection.cursor()) as cursor:
+            cursor.execute('BEGIN TRANSACTION')
+            self.assertEqual(connection._transaction_count(), 2)
+            cursor.execute('COMMIT')
+            self.assertEqual(connection._transaction_count(), 1)
+        connection.commit()
+        self.assertEqual(connection._transaction_count(), 0)
+
+
+class TestAutocommit(DDLMixin, unittest.TestCase):
+
+    ddl = '''
+        CREATE TABLE {prefix}users(
+            name VARCHAR(30)
+        )
+    '''
+    xddl = 'DROP TABLE {prefix}users'
+
+    def insert(self, cursor, name):
+        stmt = 'INSERT INTO {prefix}users VALUES (?)'.format(
+            prefix=self.prefix
+        )
+        cursor.execute(stmt, [name])
+
+    def count(self, cursor):
+        query = 'SELECT COUNT(*) FROM {prefix}users'.format(prefix=self.prefix)
+        cursor.execute(query)
+        return cursor.fetchone()[0]
+
+    def set_autocommit(self, cursor, opt):
+        cursor.execute('SET TRANSACTION {}'.format(opt))
+
+    def _test_autocommit(self, autocommit, result):
+        connection = self.connect()
+        with closing(connection.cursor()) as cursor:
+            if autocommit is not None:
+                self.set_autocommit(cursor, autocommit)
+            self.insert(cursor, 'Marco')
+            self.assertEqual(self.count(cursor), 1)
+        connection.rollback()
+        with closing(connection.cursor()) as cursor:
+            self.assertEqual(self.count(cursor), result)
+
+    def test_autocommit_off(self):
+        '''
+        AUTOCOMMIT_OFF implicitly start a new transaction but does not
+        commit it. When we rollback, the table is empty.
+        '''
+
+        self._test_autocommit('AUTOCOMMIT_OFF', 0)
+
+    def test_autocommit_on(self):
+        '''
+        AUTOCOMMIT_OFF implicitly start a new transaction and it does
+        commit it. When we rollback, we get one row.
+        '''
+
+        self._test_autocommit('AUTOCOMMIT_ON', 1)
+
+    def test_autocommit_explicit(self):
+        # XXX: why?
+        self._test_autocommit('EXPLICIT', 1)

@@ -1,7 +1,6 @@
 # Copyright (c) 2018 Marco Giusti
 
 import os
-from contextlib import closing
 import unittest
 
 import adsdb3
@@ -58,14 +57,38 @@ class DDLMixin(ConnectMixin):
         super().setUp()
         ddl = self.ddl.format(prefix=self.prefix)
         connection = self.connect()
-        with closing(connection.cursor()) as cursor:
-            cursor.execute(ddl)
         if self.xddl is not None:
             xddl = self.xddl.format(prefix=self.prefix)
+            try:
+                self._do_xddl(connection, xddl)
+            except:
+                pass
+        else:
+            xddl = None
+        with transaction(connection) as cursor:
+            cursor.execute(ddl)
+        if xddl is not None:
             self.addCleanup(self._do_xddl, connection, xddl)
         self.connection = connection
 
     @staticmethod
     def _do_xddl(connection, xddl):
-        with closing(connection.cursor()) as cursor:
+        with transaction(connection) as cursor:
             cursor.execute(xddl)
+
+
+class transaction:
+
+    def __init__(self, connection):
+        self.connection = connection
+        self.cursor = connection.cursor()
+
+    def __enter__(self):
+        return self.cursor
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.cursor.close()
+        if exc_type is None:
+            self.connection.commit()
+        else:
+            self.connection.rollback()
