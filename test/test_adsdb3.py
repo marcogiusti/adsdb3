@@ -24,7 +24,7 @@ class TestToPython(unittest.TestCase):
 
     def test_invalid_type(self):
         value = ffi.new('struct a_ads_data_value *')
-        is_null = ffi.new('int *', 0)
+        is_null = ffi.new('unsigned int *', 0)
         value.is_null = is_null
         value.type = lib.A_INVALID_TYPE
         self.assertRaises(
@@ -36,12 +36,12 @@ class TestToPython(unittest.TestCase):
 
     def _new_data_value(self, typ, buf, length, is_null=0):
         value = ffi.new('struct a_ads_data_value *')
-        _is_null = ffi.new('int *', is_null)
+        _is_null = ffi.new('unsigned int *', is_null)
         value.is_null = _is_null
         value.type = typ
         _buf = ffi.new('char[]', buf)
         value.buffer = _buf
-        _length = ffi.new('size_t *', length)
+        _length = ffi.new('unsigned int *', length)
         value.length = _length
         _ref_bucket[value] = _is_null, _buf, _length
         return value
@@ -391,3 +391,23 @@ class TestWarnings(ConnectMixin, unittest.TestCase):
                 with self.assertWarns(UserWarning) as cm:
                     cursor.__next__()
                 self.assertIn('cursor.__next__', str(cm.warning))
+
+
+class TestTransactions(ConnectMixin, unittest.TestCase):
+
+    def test_not_in_transaction(self):
+        connection = self.connect()
+        self.assertFalse(connection._in_transaction())
+
+    def test_begin_transaction(self):
+        connection = self.connect()
+        connection._begin_transaction()
+        self.assertTrue(connection._in_transaction())
+
+    def test_transaction_count(self):
+        connection = self.connect()
+        self.assertEqual(connection._transaction_count(), 0)
+        connection._begin_transaction()
+        self.assertEqual(connection._transaction_count(), 1)
+        connection._begin_transaction()
+        self.assertEqual(connection._transaction_count(), 2)

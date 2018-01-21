@@ -280,7 +280,7 @@ def _infer_type(param, value):
 
 
 def _from_python(param, value, encoding):
-    is_null = ffi.new('int *', value is None)
+    is_null = ffi.new('unsigned int *', value is None)
     param.value.is_null = is_null
 
     if is_null[0]:
@@ -308,7 +308,7 @@ def _from_python(param, value, encoding):
     buf = ffi.new('char[]', value)
     param.value.buffer = buf
     param.value.buffer_size = size
-    l = ffi.new('size_t[1]', [length])
+    l = ffi.new('unsigned int *', length)
     param.value.length = l
     _ref_bucket[param] = (is_null, buf, l)
 
@@ -369,32 +369,40 @@ class Connection:
         if self._handler is None:
             raise InterfaceError('connection closed')
 
-    def _trans_raise(self):
-        msg, errno = _error(self._handler)
-        if errno != lib.AE_TRANS_OUT_OF_SEQUENCE:
-            # Cit. the documentation:
-            # > The error code AE_TRANS_OUT_OF_SEQUENCE will be
-            # > returned if a specific connection handle is given to
-            # > AdsCommitTransaction and that connection is not in a
-            # > transaction
-            # Because we don't want to raise an exception in such
-            # case, ignore it
-            raise OperationalError(msg, errno)
-
     def _rollback_on_close(self):
         if self._handler is not None:
+            self._rollback()
+
+    def _rollback(self):
+        if self._in_transaction():
             if not lib.ads_rollback(self._handler):
-                self._trans_raise()
+                raise OperationalError(*_error(self._handler))
+
+    def _in_transaction(self):
+        in_trans = ffi.new('unsigned short int[1]')
+        if lib.AdsInTransaction(self._handler.handle, in_trans):
+            raise OperationalError(*_error(self._handler))
+        return bool(in_trans[0])
+
+    def _transaction_count(self):
+        c = ffi.new('unsigned int *')
+        if lib.AdsGetTransactionCount(self._handler.handle, c):
+            raise OperationalError(*_error(self._handler))
+        return c[0]
+
+    def _begin_transaction(self):
+        if lib.AdsBeginTransaction(self._handler.handle):
+            raise OperationalError(*_error(self._handler))
 
     def commit(self):
         self._complain_if_closed()
-        if not lib.ads_commit(self._handler):
-            self._trans_raise()
+        for _ in range(self._transaction_count()):
+            if not lib.ads_commit(self._handler):
+                raise OperationalError(*_error(self._handler))
 
     def rollback(self):
         self._complain_if_closed()
-        if not lib.ads_rollback(self._handler):
-            self._trans_raise()
+        self._rollback()
 
     def cursor(self):
         self._complain_if_closed()

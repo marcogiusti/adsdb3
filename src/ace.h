@@ -4,7 +4,9 @@
 #define AE_TRANS_OUT_OF_SEQUENCE        5047
 #define AE_VALUE_OVERFLOW               5179
 
-struct a_ads_connection;
+struct a_ads_connection {
+   uint64_t handle;  // Real ADS connection, set via ads_connect
+};
 struct a_ads_stmt;
 
 enum a_ads_data_type {
@@ -29,10 +31,10 @@ enum a_ads_data_type {
 
 struct a_ads_data_value {
     char *buffer;
-    size_t buffer_size;
-    size_t *length;
+    unsigned int buffer_size;
+    unsigned int *length;
     enum a_ads_data_type type;
-    int *is_null;
+    unsigned int *is_null;
 };
 
 enum a_ads_data_direction
@@ -83,8 +85,8 @@ struct a_ads_column_info {
     enum a_ads_native_type native_type;
     unsigned short int precision;
     unsigned short int scale;
-    size_t max_size;
-    int nullable;
+    unsigned int max_size;
+    unsigned int nullable;
 };
 
 int ads_init(const char *app_name, unsigned int api_version,
@@ -116,3 +118,8 @@ int ads_get_column(struct a_ads_stmt *ads_stmt, unsigned int col_index,
 		struct a_ads_data_value *buffer);
 int ads_get_column_info(struct a_ads_stmt *ads_stmt, unsigned int col_index,
 		struct a_ads_column_info *buffer);
+
+/* Advantage Client Engine Transaction Processing APIs */
+unsigned int AdsBeginTransaction(uint64_t handle);
+unsigned int AdsInTransaction(uint64_t handle, unsigned short int *in_trans);
+unsigned int AdsGetTransactionCount(uint64_t handle, unsigned int *count);
