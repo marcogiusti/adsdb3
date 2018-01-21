@@ -38,12 +38,9 @@ access to a server and set either ADSDB3_DATASOURCE or
 ADSDB3_CONNECTION_STRING environment variables. ADSDB3_DATASOURCE is
 used only to set the DataSource connection paramenter along with few
 defaults. With ADSDB3_CONNECTION_STRING you have control of the exact
-connection string. Online you can find some example of `connection
-strings for Sybase Advantage`_. The official documentation has a list of
-`supported options`_ for the ``AdsConnect101`` API, but not all them
-works with the connection string. I have still to figure out which work
-and which do not. If you don't set any of those variables, the tests
-that involve the server are skipped.
+connection string. See `Connection options`_ for more info. If you
+don't set any of those variables, the tests that involve the server are
+skipped.
 
 You have many options to run the tests. Most likely the easier is using
 tox::
@@ -52,8 +49,6 @@ tox::
 
 .. _Database API Specification v 2.0: https://www.python.org/dev/peps/pep-0249/
 .. _Stuart Bishop: https://stuartbishop.net/Software/DBAPI20TestSuite/index.html
-.. _connection strings for Sybase Advantage: http://docs.30c.org/conn/sybase-advantage.html
-.. _supported options: http://devzone.advantagedatabase.com/dz/webhelp/Advantage11.1/index.html?ace_adsconnect101.htm 
 
 Programming
 ===========
@@ -73,5 +68,27 @@ Ex::
       with closing(connection.cursor()) as cursor:
          cur.execute("EXECUTE PROCEDURE sp_mgGetInstallInfo();")
          print(*cur.fetchone())
+
+
+Connection options
+------------------
+
+There is online some example of `connection strings for Sybase
+Advantage`_. The official documentation has a list of `supported
+options`_ for the ``AdsConnect101`` API, but not all them works with the
+connection string. I have still to figure out which work and which do
+not. Following a list of known working connection options:
+
+   - CharType
+   - CommType
+   - DataSource
+   - Exact
+   - FIPS
+   - ReadOnly
+   - ServerType
+   - TrimTrailingSpaces
+
+.. _connection strings for Sybase Advantage: http://docs.30c.org/conn/sybase-advantage.html
+.. _supported options: http://devzone.advantagedatabase.com/dz/webhelp/Advantage11.1/index.html?ace_adsconnect101.htm
 
 .. vim: ft=rst tw=72
