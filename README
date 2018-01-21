@@ -79,14 +79,14 @@ options`_ for the ``AdsConnect101`` API, but not all them works with the
 connection string. I have still to figure out which work and which do
 not. Following a list of known working connection options:
 
-   - CharType
-   - CommType
-   - DataSource
-   - Exact
-   - FIPS
-   - ReadOnly
-   - ServerType
-   - TrimTrailingSpaces
+- CharType
+- CommType
+- DataSource
+- Exact
+- FIPS
+- ReadOnly
+- ServerType
+- TrimTrailingSpaces
 
 .. _connection strings for Sybase Advantage: http://docs.30c.org/conn/sybase-advantage.html
 .. _supported options: http://devzone.advantagedatabase.com/dz/webhelp/Advantage11.1/index.html?ace_adsconnect101.htm
