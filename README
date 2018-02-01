@@ -66,8 +66,8 @@ Ex::
 
    with closing(adsdb3.connect(**params)) as connection:
       with closing(connection.cursor()) as cursor:
-         cur.execute("EXECUTE PROCEDURE sp_mgGetInstallInfo();")
-         print(*cur.fetchone())
+         cursor.execute("EXECUTE PROCEDURE sp_mgGetInstallInfo();")
+         print(*cursor.fetchone())
 
 
 Connection options
